@@ -19,7 +19,7 @@
         .btn-add { background: #2e7d32; width: 100%; padding: 12px; font-size: 15px; }
         .custom-box { background: #fafafa; padding: 10px; border: 1px dashed #ccc; border-radius: 4px; margin-top: 8px; font-size: 13px; width: 100%; }
         .custom-box label { display: block; margin: 6px 0; font-weight: bold; }
-        input[type="text"], input[type="tel"] { width: 100%; padding: 10px; margin: 4px 0 12px 0; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        input[type="text"], input[type="tel"], select { width: 100%; padding: 10px; margin: 4px 0 12px 0; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; background: white; }
         .radio-group { display: flex; gap: 20px; margin: 6px 0 14px 0; font-size: 14px; }
         .item-carrinho { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #eee; font-size: 14px; }
         .resumo-texto { font-size: 14px; color: #444; margin-bottom: 8px; line-height: 1.4; }
@@ -38,7 +38,7 @@
                     <p>Molho de tomate, calabresa fatiada, cebola e orégano.</p>
                     <div class="item-preco">R$ 45,00</div>
                 </div>
-                <button class="btn" onclick="abrirCustomizacao('Pizza Calabresa', 45.00)">Escolher</button>
+                <button class="btn" onclick="abrirCustomizacao('Calabresa', 45.00)">Escolher</button>
             </div>
             <div class="cardapio-item">
                 <div class="item-info">
@@ -46,7 +46,7 @@
                     <p>Molho de tomate, queijo muçarela, rodelas de tomate e orégano.</p>
                     <div class="item-preco">R$ 45,00</div>
                 </div>
-                <button class="btn" onclick="abrirCustomizacao('Pizza Muçarela', 45.00)">Escolher</button>
+                <button class="btn" onclick="abrirCustomizacao('Muçarela', 45.00)">Escolher</button>
             </div>
             <div class="cardapio-item">
                 <div class="item-info">
@@ -54,11 +54,31 @@
                     <p>Molho de tomate, frango desfiado, catupiry e orégano.</p>
                     <div class="item-preco">R$ 45,00</div>
                 </div>
-                <button class="btn" onclick="abrirCustomizacao('Pizza Frango com Catupiry', 45.00)">Escolher</button>
+                <button class="btn" onclick="abrirCustomizacao('Frango com Catupiry', 45.00)">Escolher</button>
             </div>
+            
+            <!-- Painel de Customização com Lista de Sabores Selecionáveis -->
             <div id="painel-customizacao" class="custom-box oculto">
-                <p><strong>Personalizar: <span id="custom-nome"></span></strong></p>
-                <label style="margin-top: 8px;">Deseja retirar ou mudar algum ingrediente?</label>
+                <p><strong>Personalizar Pizza de <span id="custom-nome"></span></strong></p>
+                
+                <label>Como deseja sua pizza?</label>
+                <div class="radio-group" style="margin: 4px 0 10px 0;">
+                    <label><input type="radio" name="tipo_pizza" value="Inteira" checked onclick="alternarSaborOpcional(false)" style="width:auto;"> Inteira</label>
+                    <label><input type="radio" name="tipo_pizza" value="Meio a Meio" onclick="alternarSaborOpcional(true)" style="width:auto;"> Meio a Meio</label>
+                </div>
+
+                <!-- Lista de opções em vez de campo para digitar -->
+                <div id="campo-segundo-sabor" class="oculto">
+                    <label style="color: #cc1e1e;">Selecione o segundo sabor da pizza:</label>
+                    <select id="segundo-sabor">
+                        <option value="" disabled selected>Escolha um sabor...</option>
+                        <option value="Calabresa">Calabresa</option>
+                        <option value="Muçarela">Muçarela</option>
+                        <option value="Frango com Catupiry">Frango com Catupiry</option>
+                    </select>
+                </div>
+
+                <label>Deseja retirar ou mudar algum ingrediente?</label>
                 <input type="text" id="observacao-pizza" placeholder="Ex: Sem cebola, bem passada, etc.">
                 <label style="margin-top: 6px; font-weight: normal;"><input type="checkbox" id="add-borda" style="width: auto;"> Adicionar Borda Recheada (Grátis no teste)</label>
                 <button class="btn" style="margin-top: 8px; width: 100%;" onclick="confirmarPizza()">Adicionar Pizza ao Carrinho</button>
@@ -132,19 +152,47 @@
             pizzaSelecionada = { nome, preco };
             document.getElementById('custom-nome').innerText = nome;
             document.getElementById('observacao-pizza').value = "";
+            document.getElementById('segundo-sabor').value = "";
             document.getElementById('add-borda').checked = false;
+            document.querySelector('input[name="tipo_pizza"][value="Inteira"]').checked = true;
+            alternarSaborOpcional(false);
             document.getElementById('painel-customizacao').classList.remove('oculto');
+        }
+
+        function alternarSaborOpcional(mostrar) {
+            const campoSabor = document.getElementById('campo-segundo-sabor');
+            if (mostrar) {
+                campoSabor.classList.remove('oculto');
+            } else {
+                campoSabor.classList.add('oculto');
+            }
         }
 
         function confirmarPizza() {
             if (!pizzaSelecionada) return;
+            
+            let tipo = document.querySelector('input[name="tipo_pizza"]:checked').value;
             let obs = document.getElementById('observacao-pizza').value.trim();
             let colocarBorda = document.getElementById('add-borda').checked;
+            
+            let nomeFinalPizza = `Pizza de ${pizzaSelecionada.nome}`;
+            
+            if (tipo === "Meio a Meio") {
+                let segundoSabor = document.getElementById('segundo-sabor').value;
+                if (!segundoSabor || segundoSabor === "") {
+                    alert("Por favor, selecione o segundo sabor na lista!");
+                    return;
+                }
+                nomeFinalPizza = `Pizza ½ ${pizzaSelecionada.nome} / ½ ${segundoSabor}`;
+            }
+
             let detalhes = [];
             if (obs !== "") detalhes.push(obs);
             if (colocarBorda) detalhes.push("Com Borda");
+            
             let textoDetalhes = detalhes.length > 0 ? ` (${detalhes.join(', ')})` : '';
-            carrinho.push({ nome: `${pizzaSelecionada.nome}${textoDetalhes}`, preco: pizzaSelecionada.preco });
+            
+            carrinho.push({ nome: `${nomeFinalPizza}${textoDetalhes}`, preco: pizzaSelecionada.preco });
             document.getElementById('painel-customizacao').classList.add('oculto');
             pizzaSelecionada = null;
             renderizarCarrinho();
