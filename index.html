@@ -67,7 +67,6 @@
                     <label><input type="radio" name="tipo_pizza" value="Meio a Meio" onclick="alternarSaborOpcional(true)" style="width:auto;"> Meio a Meio</label>
                 </div>
 
-                <!-- Lista de opções em vez de campo para digitar -->
                 <div id="campo-segundo-sabor" class="oculto">
                     <label style="color: #cc1e1e;">Selecione o segundo sabor da pizza:</label>
                     <select id="segundo-sabor">
@@ -133,20 +132,22 @@
             </form>
         </div>
     </div>
+    
     <div id="fluxo-status" class="secao oculto">
         <h2>Acompanhar Pedido</h2>
         <div class="status-container">
             <p>O status do seu pedido é:</p>
-            <div id="status-atual" class="status-badge">Pedido Recebido</div>
+            <div id="status-atual" class="status-badge">Pendente</div>
         </div>
         <div style="margin-top: 15px; font-size: 14px; color: #555; text-align: center;">
             <p>O pagamento será feito em: <strong><span id="pagto-confirmado"></span></strong></p>
         </div>
     </div>
     <script>
-        let carrinho = [];
-        let totalGeral = 0;
-        let pizzaSelecionada = null;
+        const SUPABASE_URL = "https://supabase.co"; 
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx4Z2J0dmZ1bWZ5dnR2aHZzeG5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDIwNDQ5MjQsImV4cCI6MjA1NzYyMDkyNH0.RkY2dmU0U1hzNDU0YVRGSU42dFRLT0Z1bU1Pclh6TEU0dmVpUUpXSV9Zdw";
+        
+        let carrinho = [], totalGeral = 0, pizzaSelecionada = null, idPedidoCriado = null;
 
         function abrirCustomizacao(nome, preco) {
             pizzaSelecionada = { nome, preco };
@@ -160,113 +161,134 @@
         }
 
         function alternarSaborOpcional(mostrar) {
-            const campoSabor = document.getElementById('campo-segundo-sabor');
-            if (mostrar) {
-                campoSabor.classList.remove('oculto');
-            } else {
-                campoSabor.classList.add('oculto');
-            }
+            document.getElementById('campo-segundo-sabor').className = mostrar ? "" : "oculto";
         }
 
         function confirmarPizza() {
             if (!pizzaSelecionada) return;
-            
             let tipo = document.querySelector('input[name="tipo_pizza"]:checked').value;
             let obs = document.getElementById('observacao-pizza').value.trim();
             let colocarBorda = document.getElementById('add-borda').checked;
-            
-            let nomeFinalPizza = `Pizza de ${pizzaSelecionada.nome}`;
+            let nomeFinal = `Pizza de ${pizzaSelecionada.nome}`;
             
             if (tipo === "Meio a Meio") {
-                let segundoSabor = document.getElementById('segundo-sabor').value;
-                if (!segundoSabor || segundoSabor === "") {
-                    alert("Por favor, selecione o segundo sabor na lista!");
-                    return;
-                }
-                nomeFinalPizza = `Pizza ½ ${pizzaSelecionada.nome} / ½ ${segundoSabor}`;
+                let seg = document.getElementById('segundo-sabor').value;
+                if (!seg) { alert("Selecione o segundo sabor!"); return; }
+                nomeFinal = `Pizza ½ ${pizzaSelecionada.nome} / ½ ${seg}`;
             }
-
-            let detalhes = [];
-            if (obs !== "") detalhes.push(obs);
-            if (colocarBorda) detalhes.push("Com Borda");
             
-            let textoDetalhes = detalhes.length > 0 ? ` (${detalhes.join(', ')})` : '';
+            let det = [];
+            if (obs !== "") det.push(obs);
+            if (colocarBorda) det.push("Com Borda");
+            let textoDet = det.length > 0 ? ` (${det.join(', ')})` : '';
             
-            carrinho.push({ nome: `${nomeFinalPizza}${textoDetalhes}`, preco: pizzaSelecionada.preco });
+            carrinho.push({ nome: `${nomeFinal}${textoDet}`, preco: pizzaSelecionada.preco });
             document.getElementById('painel-customizacao').classList.add('oculto');
-            pizzaSelecionada = null;
+            pizzaSelecionada = null; 
             renderizarCarrinho();
         }
 
-        function adicionarBebida(nome, preco) {
-            carrinho.push({ nome, preco });
-            renderizarCarrinho();
+        function adicionarBebida(nome, preco) { 
+            carrinho.push({ nome, preco }); 
+            renderizarCarrinho(); 
         }
 
-        function removerDoCarrinho(index) {
-            carrinho.splice(index, 1);
-            renderizarCarrinho();
+        function removerDoCarrinho(index) { 
+            carrinho.splice(index, 1); 
+            renderizarCarrinho(); 
         }
 
         function renderizarCarrinho() {
             const container = document.getElementById('itens-carrinho');
-            const totalSpan = document.getElementById('valor-total');
-            const resumoItens = document.getElementById('resumo-texto-itens');
-            const resumoTotalSpan = document.getElementById('resumo-total');
+            if (carrinho.length === 0) {
+                container.innerHTML = '<p style="color:#888;font-size:14px;">Nenhum item adicionado ainda.</p>';
+                document.getElementById('resumo-texto-itens').innerText = 'Nenhum item no carrinho para resumir.';
+                document.getElementById('valor-total').innerText = '0.00'; 
+                document.getElementById('resumo-total').innerText = '0.00';
+                totalGeral = 0; 
+                return;
+            }
             
-            if (carrinho.length === 0) {
-                container.innerHTML = '<p style="color: #888; font-size: 14px;">Nenhum item adicionado ainda.</p>';
-                resumoItens.innerText = 'Nenhum item no carrinho para resumir.';
-                totalSpan.innerText = '0.00';
-                resumoTotalSpan.innerText = '0.00';
-                totalGeral = 0;
-                return;
-            }
-
-            container.innerHTML = '';
-            let textoResumoCompleto = [];
+            container.innerHTML = ''; 
+            let txtResumo = []; 
             totalGeral = 0;
-
+            
             carrinho.forEach((item, index) => {
-                totalGeral += item.preco;
-                textoResumoCompleto.push(`• ${item.nome} - R$ ${item.preco.toFixed(2)}`);
-                
-                const div = document.createElement('div');
-                div.className = 'item-carrinho';
-                div.innerHTML = `<div><strong>${item.nome}</strong><br><span>R$ ${item.preco.toFixed(2)}</span></div><button class="btn btn-remove" onclick="removerDoCarrinho(${index})">Remover</button>`;
-                container.appendChild(div);
+                totalGeral += item.preco; 
+                txtResumo.push(`• ${item.nome}`);
+                container.innerHTML += `
+                    <div class="item-carrinho">
+                        <div><strong>${item.nome}</strong><br><span>R$ ${item.preco.toFixed(2)}</span></div>
+                        <button class="btn btn-remove" onclick="removerDoCarrinho(${index})">Remover</button>
+                    </div>`;
             });
-
-            totalSpan.innerText = totalGeral.toFixed(2);
-            resumoTotalSpan.innerText = totalGeral.toFixed(2);
-            resumoItens.innerHTML = textoResumoCompleto.join('<br>');
+            
+            document.getElementById('valor-total').innerText = totalGeral.toFixed(2);
+            document.getElementById('resumo-total').innerText = totalGeral.toFixed(2);
+            document.getElementById('resumo-texto-itens').innerHTML = txtResumo.join('<br>');
         }
 
-        function enviarPedido(event) {
+        async function enviarPedido(event) {
             event.preventDefault();
-            if (carrinho.length === 0) {
-                alert('Seu carrinho está vazio! Adicione uma pizza ou bebida.');
-                return;
+            if (carrinho.length === 0) { alert('Seu carrinho está vazio!'); return; }
+            
+            const nome = document.getElementById('nome').value.trim();
+            const tel = document.getElementById('telefone').value.trim();
+            const end = document.getElementById('endereco').value.trim();
+            const pagto = document.querySelector('input[name="pagamento"]:checked').value;
+            const itens = carrinho.map(i => i.nome).join(', ');
+
+            document.getElementById('pagto-confirmado').innerText = pagto;
+
+            try {
+                // Envia os dados no padrão HTTPS aceito pelo GitHub Pages
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/pedidos`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SUPABASE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        cliente_nome: nome,
+                        cliente_telefone: tel,
+                        cliente_endereco: end,
+                        resumo_itens: itens,
+                        forma_pagamento: pagto,
+                        status: 'Pendente'
+                    })
+                });
+                
+                if (!response.ok) { throw new Error('Erro na requisição'); }
+
+                // Avança visualmente de tela no celular do cliente
+                document.getElementById('fluxo-compra').classList.add('oculto');
+                document.getElementById('fluxo-status').classList.remove('oculto');
+                
+                // Monitora as atualizações do dono no banco de dados com base no telefone
+                setInterval(() => checarStatusServidor(tel), 3000);
+            } catch (err) {
+                alert('Erro ao enviar pedido para a nuvem!');
             }
-            const opcaoPagamento = document.querySelector('input[name="pagamento"]:checked').value;
-            document.getElementById('pagto-confirmado').innerText = opcaoPagamento;
-            document.getElementById('fluxo-compra').classList.add('oculto');
-            document.getElementById('fluxo-status').classList.remove('oculto');
-            rodarStatus();
         }
 
-        function rodarStatus() {
-            const badge = document.getElementById('status-atual');
-            badge.innerText = "Pedido Recebido";
-            badge.style.background = "#1e88e5";
-            setTimeout(() => {
-                badge.innerText = "Preparando";
-                badge.style.background = "#ef6c00";
-            }, 5000);
-            setTimeout(() => {
-                badge.innerText = "Saiu para Entrega";
-                badge.style.background = "#2e7d32";
-            }, 10000);
+        async function checarStatusServidor(telefoneCliente) {
+            try {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/pedidos?cliente_telefone=eq.${telefoneCliente}&order=id.desc&limit=1`, {
+                    headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+                });
+                const dados = await response.json();
+                if (dados && dados.length > 0) {
+                    const status = dados[0].status; 
+                    const badge = document.getElementById('status-atual');
+                    badge.innerText = status;
+                    
+                    if (status === "Pendente") badge.style.background = "#1e88e5";
+                    if (status === "Preparando") badge.style.background = "#ef6c00";
+                    if (status === "Saiu para Entrega") badge.style.background = "#2e7d32";
+                    if (status === "Concluído") badge.style.background = "#333333";
+                }
+            } catch (e) {}
         }
     </script>
 </body>
